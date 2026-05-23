@@ -33,11 +33,11 @@ func AssignFlags(url *string, filePath *string, limit *uint, prefix *string, ext
 	});
 
 	if !set["url"] && !set["file"]{
-        Utils.Logger.LogError("error: must provide -url or -file")
+        Utils.Logger.LogError("Must provide -url or -file")
         os.Exit(1)
     }
     if set["url"] && set["file"]{
-        Utils.Logger.LogError("error: use either -url or -file, not both")
+        Utils.Logger.LogError("Wse either -url or -file, not both")
         os.Exit(1)
     }
 
@@ -49,7 +49,7 @@ func AssignFlags(url *string, filePath *string, limit *uint, prefix *string, ext
 	if set["file"]{
 		_, err := os.Open(*filePath)
 		if err != nil{
-			Utils.Logger.LogError("error: File does not exist")
+			Utils.Logger.LogError("File does not exist")
         	os.Exit(1)
 		}
 		Common.AppConfig.Urls = GetUrlsFromFile(*filePath)
@@ -72,7 +72,7 @@ func GetUrlsFromFile(filePath string) []string{
 	//
 	content, err := os.ReadFile(filePath)
 	if err != nil{
-		Utils.Logger.LogError("Could not read file contents at" + filePath)
+		Utils.Logger.LogError("Could not read file contents at " + filePath)
 		os.Exit(1)
 	}
 

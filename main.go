@@ -2,40 +2,38 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"GDownloader/Common"
+	"GDownloader/Interfaces"
 	"GDownloader/Services"
 	"GDownloader/Utils"
 )
 
 func main() {
 	//
-	var str strings.Builder
-	for _, url := range Common.AppConfig.Urls {
-		str.WriteString(url)
-	}
+	fmt.Printf("%05d | %s | %s | %s\n", 
+		Utils.PtrTernary(Common.AppConfig.Limit, 00000), 
+		Utils.PtrTernary(Common.AppConfig.Prefix, "None"), 
+		Utils.PtrTernary(Common.AppConfig.Extension, "None"), 
+		Utils.ArrayToString(Common.AppConfig.Urls),
+	)
 
 	Dispatch()
-
-	fmt.Printf("%05d | %s | %s | %s", Utils.PtrTernary(Common.AppConfig.Limit, 00000), Utils.PtrTernary(Common.AppConfig.Prefix, "None"), Utils.PtrTernary(Common.AppConfig.Extension, "None"), str.String())
 }
 
 func Dispatch() {
 	//
-	urls := Common.AppConfig.Urls
+	services := []Interfaces.IDownloadProvider{
+		Services.BunkrService{}.Build(),
+		Services.FilesterService{}.Build(),
+		Services.FileDitchService{}.Build(),
+	}
 
-	for _, url := range urls {
-		switch Utils.GetBaseUrl(url) {
-			//
-			case Common.AppDefs.BunkrBaseURL:
-				Services.BunkrService.Build(Services.BunkrService{}).Download(url)
-
-			case Common.AppDefs.FilesterBaseURL:
-				Services.FilesterService.Build(Services.FilesterService{}).Download(url)
-				
-			case Common.AppDefs.FileDitchBaseURL:
-				Services.FileDitchService.Build(Services.FileDitchService{}).Download(url)
+	for _, url := range Common.AppConfig.Urls{
+		for _, service := range services{
+			if service.Supports(url){
+				service.HandleDownload(url)
+			}
 		}
 	}
 }

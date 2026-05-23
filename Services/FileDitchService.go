@@ -10,25 +10,38 @@ import (
 type FileDitchService struct{
 	//
 	Name string
+	BaseURL string
+	CDNURLs []string
 	SupportsRegex *regexp.Regexp
+	CurrentInstances uint8
 }
 
 func (this FileDitchService) Build() Interfaces.IDownloadProvider{
 	//
-	r, _ := regexp.Compile("")
-
 	return FileDitchService{ 
-		SupportsRegex: r,
 		Name: "FileDitchService",
+		BaseURL: "fileditchfiles.me",
+		CDNURLs: []string {
+			"https://1.thegumonmyshoe.me",
+		},
+		SupportsRegex: regexp.MustCompile(`(?i)^https?://(www\.)?fileditchfiles\.me`),
+		CurrentInstances: 0,
 	}
 }
 
-func (this FileDitchService) Download(url string){
+func (this FileDitchService) Supports(url string) bool{
 	//
-	Utils.Logger.Log("Downloading from " + this.Name)
+	return this.SupportsRegex.MatchString(url)
 }
 
-func (this FileDitchService) Supports(url string) (bool, error){
+func (this FileDitchService) Download(url string) error{
 	//
-	return regexp.MatchString(this.SupportsRegex.String(), url);
+	Utils.Logger.Log("Downloading from " + this.Name)
+
+	return nil
+}
+
+func (this FileDitchService) HandleDownload(url string){
+	//
+	Utils.Logger.Log(this.Name + " " + url)
 }
