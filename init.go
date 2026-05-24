@@ -9,14 +9,14 @@ import (
 	"GDownloader/Utils"
 )
 
-func init(){
+func init() {
 	//
 	url, filePath,  limit,  prefix, extension := InitFlags()
 	flag.Parse()
 	AssignFlags(url, filePath, limit, prefix, extension)
 }
 
-func InitFlags() (*string, *string, *uint, *string, *string){
+func InitFlags() (*string, *string, *uint, *string, *string) {
 	//
 	return flag.String("url", "", "Single url"),
 		flag.String("file", "", "Path to multi-url file"),
@@ -28,50 +28,51 @@ func InitFlags() (*string, *string, *uint, *string, *string){
 func AssignFlags(url *string, filePath *string, limit *uint, prefix *string, extension *string){
 	//
 	set := map[string]bool{}
-	flag.Visit(func (f *flag.Flag){
+	flag.Visit(func (f *flag.Flag) {
 		set[f.Name] = true
 	});
 
-	if !set["url"] && !set["file"]{
+	if !set["url"] && !set["file"] {
         Utils.Logger.LogError("Must provide -url or -file")
         os.Exit(1)
     }
-    if set["url"] && set["file"]{
+    if set["url"] && set["file"] {
         Utils.Logger.LogError("Wse either -url or -file, not both")
         os.Exit(1)
     }
 
-	if set["url"]{
+	if set["url"] {
 		Common.AppConfig.Urls = make([]string, 1)
 		Common.AppConfig.Urls[0] = *url
 	}
 
-	if set["file"]{
+	if set["file"] {
 		_, err := os.Open(*filePath)
 		if err != nil{
 			Utils.Logger.LogError("File does not exist")
         	os.Exit(1)
 		}
+
 		Common.AppConfig.Urls = GetUrlsFromFile(*filePath)
 	}
 
-	if set["limit"]{
+	if set["limit"] {
 		Common.AppConfig.Limit = limit
 	}
 
-	if set["prefix"]{
+	if set["prefix"] {
 		Common.AppConfig.Prefix = prefix
 	}
 
-	if set["extension"]{
+	if set["extension"] {
 		Common.AppConfig.Extension = extension
 	}
 }
 
-func GetUrlsFromFile(filePath string) []string{
+func GetUrlsFromFile(filePath string) []string {
 	//
 	content, err := os.ReadFile(filePath)
-	if err != nil{
+	if err != nil {
 		Utils.Logger.LogError("Could not read file contents at " + filePath)
 		os.Exit(1)
 	}
@@ -80,8 +81,8 @@ func GetUrlsFromFile(filePath string) []string{
 
 	var urls []string
 
-	for _, line := range lines{
-		if strings.TrimSpace(line) != ""{
+	for _, line := range lines{ 
+		if strings.TrimSpace(line) != "" {
 			urls = append(urls, line)
 		}
 	}

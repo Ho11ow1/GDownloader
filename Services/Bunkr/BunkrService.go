@@ -4,44 +4,32 @@ import (
 	"regexp"
 
 	"GDownloader/Interfaces"
-	"GDownloader/Utils"
+	"GDownloader/Models"
 )
 
-type BunkrService struct{
+type BunkrService struct {
 	//
+	Base Models.DownloadServiceBase
 	Name string
 	BaseURL string
 	CDNURLs []string
 	SupportsRegex *regexp.Regexp
-	CurrentInstances uint8
 }
 
-func (this BunkrService) Build() Interfaces.IDownloadProvider{
+func (this BunkrService) Build() Interfaces.IDownloadProvider {
 	//
 	return BunkrService{ 
+		Base: Models.DownloadServiceBase{},
 		Name: "BunkrService", // bunkr.cr | bunkr.black | bunkr.site | bunkr.pk
 		BaseURL: "bunkr.",
 		CDNURLs: []string { 
 			"https://get.bunkrr.su",
 		},
 		SupportsRegex: regexp.MustCompile(`(?i)^https?://bunkr\.[a-z]+`),
-		CurrentInstances: 0,
 	}
 }
 
-func (this BunkrService) Supports(url string) bool{
+func (this BunkrService) Supports(url string) bool {
 	//
 	return this.SupportsRegex.MatchString(url)
-}
-
-func (this BunkrService) Download(url string) error{
-	//
-	Utils.Logger.Log("Downloading from " + this.Name)
-
-	return nil
-}
-
-func (this BunkrService) HandleDownload(url string){
-	//
-	Utils.Logger.Log(this.Name + " " + url)
 }

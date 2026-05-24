@@ -2,12 +2,17 @@ package Common
 
 import "time"
 
-type appDefs struct{
+type appDefs struct {
+	//
 	MaxConcurrent uint8
-	Timeout time.Duration
+	MaxRetry uint8
+	RetryDelay time.Duration
+	DownloadDir string
 }
 
 var AppDefs = &appDefs{
 	MaxConcurrent: 5,
-	Timeout: 5 * time.Second,
+	MaxRetry: 3,
+	RetryDelay: 3 * time.Second,
+	DownloadDir: `./Downloads`,
 }

@@ -1,6 +1,6 @@
 package Common
 
-type appConfig struct{
+type appConfig struct {
 	//
 	Urls []string
 	Limit *uint
