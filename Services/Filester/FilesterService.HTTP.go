@@ -15,9 +15,9 @@ import (
 	"GDownloader/Utils"
 )
 
-func (this FilesterService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string) error {
+func (this FilesterService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string, rootURL string) error {
 	//
-	destPath := Utils.GetAvailableDestinationPath(filename)
+	destPath := Utils.GetAvailableDestinationPath(filename, rootURL)
 
     var err error
     for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
@@ -62,7 +62,7 @@ func (this FilesterService) HandleDownload(pageURL string) {
                     return
                 }
 
-                err = this.Download(client, s.Filename, s.URL, downloadURL)
+                err = this.Download(client, s.Filename, s.URL, downloadURL, pageURL)
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
                 }
@@ -78,7 +78,7 @@ func (this FilesterService) HandleDownload(pageURL string) {
             return
         }
 
-        err = this.Download(client, filename, pageURL, downloadURL);
+        err = this.Download(client, filename, pageURL, downloadURL, pageURL);
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
         }

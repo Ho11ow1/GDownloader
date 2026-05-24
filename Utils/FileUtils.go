@@ -10,9 +10,11 @@ import (
 	"GDownloader/Common"
 )
 
-func GetAvailableDestinationPath(filename string) string {
+func GetAvailableDestinationPath(filename string, pageURL string) string {
 	//
-	destPath := filepath.Join(Common.AppDefs.DownloadDir, filename)
+	subDir := filepath.Join(Common.AppDefs.DownloadDir, filepath.Base(pageURL))
+	os.MkdirAll(subDir, os.ModePerm)
+    destPath := filepath.Join(subDir, filename)
     
     _, err := os.Stat(destPath); 
 	if err == nil {

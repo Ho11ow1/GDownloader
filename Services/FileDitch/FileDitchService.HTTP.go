@@ -12,9 +12,9 @@ import (
 	"GDownloader/Utils"
 )
 
-func (this FileDitchService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string) error {
+func (this FileDitchService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string, rootURL string) error {
 	//
-	destPath := Utils.GetAvailableDestinationPath(filename)
+	destPath := Utils.GetAvailableDestinationPath(filename, rootURL)
 
 	var err error
     for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
@@ -42,7 +42,7 @@ func (this FileDitchService) HandleDownload(pageURL string) {
     }
 
 	filename := strings.TrimSuffix(filepath.Base(pageURL), filepath.Ext(pageURL)) + filepath.Ext(pageURL)
-	err = this.Download(client, filename, pageURL, downloadURL);
+	err = this.Download(client, filename, pageURL, downloadURL, pageURL);
     if err != nil {
         Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
     }
