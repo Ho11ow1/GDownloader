@@ -3,15 +3,18 @@ package Services
 import (
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"regexp"
 
 	"GDownloader/Interfaces"
 	"GDownloader/Models"
+	"GDownloader/Utils"
 )
 
 type BunkrService struct {
 	//
 	Base Models.DownloadServiceBase
+	Client Utils.HTTPClient
 	Name string
 	BaseURL string
 	CDNURLs []string
@@ -28,6 +31,7 @@ func (this BunkrService) Build() Interfaces.IDownloadProvider {
 	//
 	return BunkrService{ 
 		Base: Models.DownloadServiceBase{},
+		Client: Utils.HTTPClient{Client: &http.Client{}},
 		Name: "BunkrService", // bunkr.cr | bunkr.black | bunkr.site | bunkr.pk
 		BaseURL: "bunkr.",
 		CDNURLs: []string { 

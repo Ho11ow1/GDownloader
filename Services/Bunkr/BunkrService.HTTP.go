@@ -3,7 +3,7 @@ package Services
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -13,13 +13,13 @@ import (
 	"GDownloader/Utils"
 )
 
-func (this BunkrService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string, rootURL string) error {
+func (this BunkrService) Download(filename string, pageURL string, downloadURL string, rootURL string) error {
 	//
 	destPath := Utils.GetAvailableDestinationPath(filename, rootURL)
 
 	var err error
     for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
-        err = client.Download(pageURL, downloadURL, destPath)
+        err = this.Client.Download(pageURL, downloadURL, destPath)
         if err == nil {
             Utils.Logger.LogSuccess(fmt.Sprintf("Successfully downloaded: %s", filename))
             return nil
@@ -34,10 +34,8 @@ func (this BunkrService) Download(client Utils.HTTPClient, filename string, page
 
 func (this BunkrService) HandleDownload(pageURL string) {
 	//
-    client := Utils.HTTPClient{Client: &http.Client{}}
-
     if this.Base.IsAlbum(Common.Bunkr, pageURL) {
-        urls, err := this.GetAlbumURLs(client, pageURL)
+        urls, err := this.GetAlbumURLs(pageURL)
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Failed to get album URLs: %s", err))
             return
@@ -54,7 +52,7 @@ func (this BunkrService) HandleDownload(pageURL string) {
                 defer wg.Done()
                 defer func() { <-semaphore }()
 
-                _, downloadURL, err := this.GetFileInfo(client, s.URL)
+                _, downloadURL, err := this.GetFileInfo(s.URL)
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Failed to get download URL: %s", err))
                     return
@@ -63,7 +61,7 @@ func (this BunkrService) HandleDownload(pageURL string) {
 				Utils.Logger.Log(fmt.Sprintf("%s | %s | %s\n", s.Filename, s.URL, downloadURL))
 
 
-				err = this.Download(client, s.Filename, s.URL, downloadURL, pageURL);
+				err = this.Download(s.Filename, s.URL, downloadURL, pageURL);
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
                 }
@@ -73,7 +71,7 @@ func (this BunkrService) HandleDownload(pageURL string) {
         wg.Wait()
 
     } else {
-        filename, downloadURL, err := this.GetFileInfo(client, pageURL)
+        filename, downloadURL, err := this.GetFileInfo(pageURL)
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Failed to get download URL: %s", err))
             return
@@ -81,72 +79,58 @@ func (this BunkrService) HandleDownload(pageURL string) {
 
 		Utils.Logger.Log(fmt.Sprintf("%s | %s", filename, downloadURL))
         
-		err = this.Download(client, filename, pageURL, downloadURL, pageURL);
+		err = this.Download(filename, pageURL, downloadURL, pageURL);
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
         }
     }
 }
 
-func (this BunkrService) GetAlbumURLs(client Utils.HTTPClient, pageURL string) ([]Models.BunkrSlug, error) {
+func (this BunkrService) GetAlbumURLs(pageURL string) ([]Models.BunkrSlug, error) {
 	//
-	origin, err := Utils.ParseOrigin(pageURL)
-    if err != nil {
-        return nil, err
-    }
-
-	body, err := client.Get(strings.Split(pageURL, "?")[0] + "?page=1")
+	body, err := this.Client.Get(strings.Split(pageURL, "?")[0] + "?page=1")
     if err != nil {
         return nil, fmt.Errorf("Failed to fetch album page 1: %w", err)
     }
 
-	allSlugs := this.GetSlugsFromPage(string(body), origin)
-    pageCount := this.GetPageCount(string(body))
-    for page := 2; page <= pageCount; page++ {
-        pageBody, err := client.Get(strings.Split(pageURL, "?")[0] + fmt.Sprintf("?page=%d", page))
-        if err != nil {
-            return nil, fmt.Errorf("Failed to fetch album page %d: %w", page, err)
-        }
-
-        allSlugs = append(allSlugs, this.GetSlugsFromPage(string(pageBody), origin)...)
-    }
-
-	return allSlugs, nil
+	return this.ParseAlbumURLs(string(body), pageURL)
 }
 
-func (this BunkrService) GetFileInfo(client Utils.HTTPClient, pageURL string) (string, string, error) {
+func (this BunkrService) GetFileInfo(pageURL string) (string, string, error) {
 	//
-    body, err := client.Get(pageURL)
+    body, err := this.Client.Get(pageURL)
     if err != nil {
         return "", "", fmt.Errorf("Failed to fetch page: %w", err)
     }
-    bodyStr := string(body)
 
-    nameMatches := this.SingleFileNameRegex.FindStringSubmatch(bodyStr)
-    if len(nameMatches) < 2 {
-        return "", "", fmt.Errorf("Could not find filename on page")
-    }
+    name, id, err := this.ParseFileInfo(string(body))
 
-    idMatches := this.DownloadIDRegex.FindStringSubmatch(bodyStr)
-    if len(idMatches) < 2 {
-        return "", "", fmt.Errorf("Could not find download ID on page")
-    }
-
-    payload, _ := json.Marshal(map[string]string{"id": idMatches[1]})
-    resBody, err := client.Post(pageURL, "https://apidl.bunkr.ru/api/_001_v2", payload)
-    if err != nil {
-        return "", "", fmt.Errorf("API request failed: %w", err)
-    }
-
-    tokenData := Models.BunkrTokenData{}
-    if err = json.Unmarshal(resBody, &tokenData); err != nil {
-        return "", "", fmt.Errorf("Failed to parse token response: %w", err)
-    }
-
-    downloadURL, err := this.DecryptURL(tokenData.URL, tokenData.Timestamp)
+    payload, _ := json.Marshal(map[string]string{"id": id})
+    tokenURL, timestamp, err := this.GetTokenData(pageURL, payload)
     if err != nil {
         return "", "", err
     }
 
-    return nameMatches[1], downloadURL + "?n=" + nameMatches[1], nil
+    downloadURL, err := this.DecryptURL(tokenURL, timestamp)
+    if err != nil {
+        return "", "", err
+    }
+
+    return name, downloadURL + "?n=" + url.PathEscape(name), nil
+}
+
+func (this BunkrService) GetTokenData(pageURL string, payload []byte) (string, int64, error){
+    //
+    resBody, err := this.Client.Post(pageURL, "https://apidl.bunkr.ru/api/_001_v2", payload)
+    if err != nil {
+        return "", 0, fmt.Errorf("API request failed: %w", err)
+    }
+
+    tokenData := Models.BunkrTokenData{}
+    err = json.Unmarshal(resBody, &tokenData);
+    if err != nil {
+        return "", 0, fmt.Errorf("Failed to parse token response: %w", err)
+    }
+
+    return tokenData.URL, tokenData.Timestamp, nil
 }

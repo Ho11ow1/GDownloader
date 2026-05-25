@@ -3,7 +3,6 @@ package Services
 import (
 	"fmt"
 	"html"
-	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,13 +11,13 @@ import (
 	"GDownloader/Utils"
 )
 
-func (this FileDitchService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string, rootURL string) error {
+func (this FileDitchService) Download(filename string, pageURL string, downloadURL string, rootURL string) error {
 	//
 	destPath := Utils.GetAvailableDestinationPath(filename, rootURL)
 
 	var err error
     for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
-        err = client.Download(pageURL, downloadURL, destPath)
+        err = this.Client.Download(pageURL, downloadURL, destPath)
         if err == nil {
             Utils.Logger.LogSuccess(fmt.Sprintf("Successfully downloaded: %s", filename))
             return nil
@@ -33,24 +32,22 @@ func (this FileDitchService) Download(client Utils.HTTPClient, filename string, 
 
 func (this FileDitchService) HandleDownload(pageURL string) {
 	//
-	client := Utils.HTTPClient{ Client: &http.Client{}}
-
-	downloadURL, err := this.GetDownloadURL(client, pageURL)
+	downloadURL, err := this.GetDownloadURL(pageURL)
 	if err != nil {
         Utils.Logger.LogError(fmt.Sprintf("Failed to get download URL: %s", err))
         return
     }
 
 	filename := strings.TrimSuffix(filepath.Base(pageURL), filepath.Ext(pageURL)) + filepath.Ext(pageURL)
-	err = this.Download(client, filename, pageURL, downloadURL, pageURL);
+	err = this.Download(filename, pageURL, downloadURL, pageURL);
     if err != nil {
         Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
     }
 }
 
-func (this FileDitchService) GetDownloadURL(client Utils.HTTPClient, pageURL string) (string, error) {
+func (this FileDitchService) GetDownloadURL(pageURL string) (string, error) {
 	//
-    body, err := client.Get(pageURL)
+    body, err := this.Client.Get(pageURL)
     if err != nil {
         return "", fmt.Errorf("Failed to fetch page: %w", err)
     }

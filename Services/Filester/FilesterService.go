@@ -1,15 +1,18 @@
 package Services
 
 import (
+	"net/http"
 	"regexp"
 
 	"GDownloader/Interfaces"
 	"GDownloader/Models"
+	"GDownloader/Utils"
 )
 
 type FilesterService struct {
 	//
 	Base Models.DownloadServiceBase
+	Client Utils.HTTPClient
 	Name string
 	BaseURL string
 	CDNURLs []string
@@ -23,6 +26,7 @@ func (this FilesterService) Build() Interfaces.IDownloadProvider {
 	//
 	return FilesterService{
 		Base: Models.DownloadServiceBase{},
+		Client: Utils.HTTPClient{Client: &http.Client{}},
 		Name: "FilesterService",
 		BaseURL: "filester.", // filester.si | filester.gg | filester.me | filester.sh
 		CDNURLs: []string {

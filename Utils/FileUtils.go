@@ -2,7 +2,6 @@ package Utils
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +13,7 @@ func GetAvailableDestinationPath(filename string, pageURL string) string {
 	//
 	subDir := filepath.Join(Common.AppDefs.DownloadDir, filepath.Base(pageURL))
 	os.MkdirAll(subDir, os.ModePerm)
-    destPath := filepath.Join(subDir, filename)
+    destPath := filepath.Join(subDir, filepath.Base(filename))
     
     _, err := os.Stat(destPath); 
 	if err == nil {
@@ -24,7 +23,7 @@ func GetAvailableDestinationPath(filename string, pageURL string) string {
 		n := 1
 		for {
 			newFilename := fmt.Sprintf(`%s (%d)%s`, name, n, ext)
-			destPath = filepath.Join(Common.AppDefs.DownloadDir, newFilename)
+			destPath = filepath.Join(subDir, newFilename)
 
 			_, err := os.Stat(destPath);
 			if err != nil {
@@ -36,14 +35,4 @@ func GetAvailableDestinationPath(filename string, pageURL string) string {
 	}
 
 	return destPath
-}
-
-func ParseOrigin(pageURL string) (string, error) {
-	//
-    parsed, err := url.Parse(pageURL)
-    if err != nil {
-        return "", fmt.Errorf("Failed to parse URL: %w", err)
-    }
-	
-    return parsed.Scheme + "://" + parsed.Host, nil
 }

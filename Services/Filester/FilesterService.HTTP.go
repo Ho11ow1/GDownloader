@@ -3,8 +3,9 @@ package Services
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"math/rand"
-	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"sync"
@@ -15,15 +16,15 @@ import (
 	"GDownloader/Utils"
 )
 
-func (this FilesterService) Download(client Utils.HTTPClient, filename string, pageURL string, downloadURL string, rootURL string) error {
+func (this FilesterService) Download(filename string, pageURL string, downloadURL string, rootURL string) error {
 	//
-	destPath := Utils.GetAvailableDestinationPath(filename, rootURL)
+	destPath := Utils.GetAvailableDestinationPath(html.UnescapeString(filename), rootURL)
 
     var err error
     for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
-        err = client.Download(pageURL, downloadURL, destPath)
+        err = this.Client.Download(pageURL, downloadURL, destPath)
         if err == nil {
-            Utils.Logger.LogSuccess(fmt.Sprintf("Successfully downloaded: %s", filename))
+            Utils.Logger.LogSuccess(fmt.Sprintf("Successfully downloaded: %s", html.UnescapeString(filename)))
             return nil
         }
 
@@ -36,10 +37,8 @@ func (this FilesterService) Download(client Utils.HTTPClient, filename string, p
 
 func (this FilesterService) HandleDownload(pageURL string) {
     //
-    client := Utils.HTTPClient{ Client: &http.Client{}}
-
     if this.Base.IsAlbum(Common.Filester, pageURL) {
-        urls, err := this.GetAlbumURLs(client, pageURL)
+        urls, err := this.GetAlbumURLs(pageURL)
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Failed to get album URLs: %s", err))
             return
@@ -56,13 +55,13 @@ func (this FilesterService) HandleDownload(pageURL string) {
                 defer wg.Done()
                 defer func() { <-semaphore }()
 
-                _, downloadURL, err := this.GetFileInfo(client, s.URL)
+                _, downloadURL, err := this.GetFileInfo(s.URL)
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Failed to get download URL: %s", err))
                     return
                 }
 
-                err = this.Download(client, s.Filename, s.URL, downloadURL, pageURL)
+                err = this.Download(s.Filename, s.URL, downloadURL, pageURL)
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
                 }
@@ -72,79 +71,69 @@ func (this FilesterService) HandleDownload(pageURL string) {
         wg.Wait()
 
     } else {
-        filename, downloadURL, err := this.GetFileInfo(client, pageURL)
+        filename, downloadURL, err := this.GetFileInfo(pageURL)
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Failed to get file info: %s", err))
             return
         }
 
-        err = this.Download(client, filename, pageURL, downloadURL, pageURL);
+        err = this.Download(filename, pageURL, downloadURL, pageURL);
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
         }
     }
 }
 
-func (this FilesterService) GetAlbumURLs(client Utils.HTTPClient, pageURL string) ([]Models.FilesterSlug, error) {
+func (this FilesterService) GetAlbumURLs(pageURL string) ([]Models.FilesterSlug, error) {
     //
-    origin, err := Utils.ParseOrigin(pageURL)
+    body, err := this.Client.Get(strings.Split(pageURL, `?`)[0] + `?page=1`)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf(`Failed to fetch album page 1: %w`, err)
     }
 
-    body, err := client.Get(strings.Split(pageURL, "?")[0] + "?page=1")
-    if err != nil {
-        return nil, fmt.Errorf("Failed to fetch album page 1: %w", err)
-    }
-
-    allSlugs := this.GetSlugsFromPage(string(body), origin)
-    pageCount := this.GetPageCount(string(body))
-    for page := 2; page <= pageCount; page++ {
-        pageBody, err := client.Get(strings.Split(pageURL, "?")[0] + fmt.Sprintf("?page=%d", page))
-        if err != nil {
-            return nil, fmt.Errorf("Failed to fetch album page %d: %w", page, err)
-        }
-
-        allSlugs = append(allSlugs, this.GetSlugsFromPage(string(pageBody), origin)...)
-    }
-
-    return allSlugs, nil
+    return this.ParseAlbumURLs(string(body), pageURL)
 }
 
-func (this FilesterService) GetFileInfo(client Utils.HTTPClient, pageURL string) (string, string, error) {
-    //
-    origin, err := Utils.ParseOrigin(pageURL)
+func (this FilesterService) GetFileInfo(pageURL string) (string, string, error) {
+    body, err := this.Client.Get(pageURL)
     if err != nil {
-        return "", "", err
+        return ``, ``, fmt.Errorf(`Failed to fetch page: %w`, err)
     }
 
-    body, err := client.Get(pageURL)
+    filename, err := this.ParseFileInfo(string(body))
     if err != nil {
-        return "", "", fmt.Errorf("Failed to fetch page: %w", err)
+        return "", "", fmt.Errorf("Failed parsing file info: %w", err)
     }
-
-    bodyStr := string(body)
-    filenameMatches := this.SingleFileNameRegex.FindStringSubmatch(bodyStr)
-    if len(filenameMatches) < 2 {
-        return "", "", fmt.Errorf("Could not find filename on page")
+    
+    parsed, err := url.Parse(pageURL)
+    if err != nil {
+        return ``, ``, fmt.Errorf(`Failed to parse URL: %w`, err)
     }
+    origin := parsed.Scheme + `://` + parsed.Host
+    slug := path.Base(parsed.Path)
 
-    slug := path.Base(filenameMatches[0])
     payload, _ := json.Marshal(map[string]string{"file_slug": slug})
-    resBody, err := client.Post(pageURL, origin + "/api/public/download", payload)
+    downloadURL, err := this.GetTokenData(pageURL, origin, payload)
+
+    cdn := this.CDNURLs[rand.Intn(len(this.CDNURLs))]
+    return filename, cdn + downloadURL + `?download=true`, nil
+}
+
+func (this FilesterService) GetTokenData(pageURL string, origin string, payload []byte) (string, error) {
+    //
+    resBody, err := this.Client.Post(pageURL, origin + "/api/public/download", payload)
     if err != nil {
-        return "", "", fmt.Errorf("Token request failed: %w", err)
+        return "", fmt.Errorf("Token request failed: %w", err)
     }
 
     tokenData := Models.FilesterTokenData{}
-    err = json.Unmarshal(resBody, &tokenData); 
-    if err != nil{
-        return "", "", fmt.Errorf("Failed to parse token response: %w", err)
+    err = json.Unmarshal(resBody, &tokenData);
+    if err != nil {
+        return "", fmt.Errorf("Failed to parse token response: %w", err)
     }
     if tokenData.DownloadURL == "" {
-        return "", "", fmt.Errorf("Empty download URL in response")
+        return "", fmt.Errorf("Empty download URL in response")
     }
 
-    cdn := this.CDNURLs[rand.Intn(len(this.CDNURLs))]
-    return filenameMatches[1], cdn + tokenData.DownloadURL + "?download=true", nil
+    return tokenData.DownloadURL, nil
 }

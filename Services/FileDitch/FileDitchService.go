@@ -1,15 +1,18 @@
 package Services
 
 import (
+	"net/http"
 	"regexp"
 
 	"GDownloader/Interfaces"
 	"GDownloader/Models"
+	"GDownloader/Utils"
 )
 
 type FileDitchService struct {
 	//
 	Base Models.DownloadServiceBase
+	Client Utils.HTTPClient
 	Name string
 	BaseURL string
 	CDNURLs []string
@@ -21,6 +24,7 @@ func (this FileDitchService) Build() Interfaces.IDownloadProvider {
 	//
 	return FileDitchService{ 
 		Base: Models.DownloadServiceBase{},
+		Client: Utils.HTTPClient{Client: &http.Client{}},
 		Name: "FileDitchService",
 		BaseURL: "fileditchfiles.me",
 		CDNURLs: []string {

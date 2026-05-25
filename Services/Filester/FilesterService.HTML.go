@@ -1,12 +1,15 @@
 package Services
 
 import (
+	"fmt"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"GDownloader/Models"
 )
 
-func (this FilesterService) GetSlugsFromPage(body string, origin string) []Models.FilesterSlug {
+func (this FilesterService) ParseSlugsFromPage(body string, origin string) []Models.FilesterSlug {
     //
     slugs := []Models.FilesterSlug{}
     
@@ -14,8 +17,8 @@ func (this FilesterService) GetSlugsFromPage(body string, origin string) []Model
     for _, match := range matches {
         if len(match) > 1 {
             slugs = append(slugs, Models.FilesterSlug{
-                URL: origin + match[1],
-                Filename: match[2],
+                URL: origin + match[2],
+                Filename: match[1],
             })
         }
     }
@@ -23,7 +26,7 @@ func (this FilesterService) GetSlugsFromPage(body string, origin string) []Model
     return slugs
 }
 
-func (this FilesterService) GetPageCount(body string) int {
+func (this FilesterService) ParsePageCount(body string) int {
     //
     matches := this.PageCountRegex.FindStringSubmatch(body)
     if len(matches) < 2 {
@@ -36,4 +39,36 @@ func (this FilesterService) GetPageCount(body string) int {
     }
 
     return count
+}
+
+func (this FilesterService) ParseAlbumURLs(body string, pageURL string) ([]Models.FilesterSlug, error) {
+    //
+    parsed, err := url.Parse(pageURL)
+    if err != nil {
+        return nil, err
+    }
+    origin := parsed.Scheme + "://" + parsed.Host
+
+    allSlugs := this.ParseSlugsFromPage(string(body), origin)
+    pageCount := this.ParsePageCount(string(body))
+    for page := 2; page <= pageCount; page++ {
+        pageBody, err := this.Client.Get(strings.Split(pageURL, "?")[0] + fmt.Sprintf("?page=%d", page))
+        if err != nil {
+            return nil, fmt.Errorf("Failed to fetch album page %d: %w", page, err)
+        }
+
+        allSlugs = append(allSlugs, this.ParseSlugsFromPage(string(pageBody), origin)...)
+    }
+
+    return allSlugs, nil
+}
+
+func (this FilesterService) ParseFileInfo(body string) (string, error) {
+    //
+    filenameMatches := this.SingleFileNameRegex.FindStringSubmatch(body)
+    if len(filenameMatches) < 2 {
+        return "", fmt.Errorf("Could not find filename on page")
+    }
+
+    return filenameMatches[1], nil
 }

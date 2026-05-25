@@ -1,12 +1,15 @@
 package Services
 
 import (
+	"fmt"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"GDownloader/Models"
 )
 
-func (this BunkrService) GetSlugsFromPage(body string, origin string) []Models.BunkrSlug {
+func (this BunkrService) ParseSlugsFromPage(body string, origin string) []Models.BunkrSlug {
     //
     slugs := []Models.BunkrSlug{}
 
@@ -22,7 +25,7 @@ func (this BunkrService) GetSlugsFromPage(body string, origin string) []Models.B
     return slugs
 }
 
-func (this BunkrService) GetPageCount(body string) int {
+func (this BunkrService) ParsePageCount(body string) int {
 	//
     navMatch := this.PageCountRegex.FindStringSubmatch(body)
     if len(navMatch) < 2 {
@@ -37,5 +40,43 @@ func (this BunkrService) GetPageCount(body string) int {
             max = num
         }
     }
+
     return max
+}
+
+func (this BunkrService) ParseAlbumURLs(body string, pageURL string) ([]Models.BunkrSlug, error) {
+    //
+    parsed, err := url.Parse(pageURL)
+    if err != nil {
+        return nil, err
+    }
+    origin := parsed.Scheme + "://" + parsed.Host
+
+    allSlugs := this.ParseSlugsFromPage(string(body), origin)
+    pageCount := this.ParsePageCount(string(body))
+    for page := 2; page <= pageCount; page++ {
+        pageBody, err := this.Client.Get(strings.Split(pageURL, "?")[0] + fmt.Sprintf("?page=%d", page))
+        if err != nil {
+            return nil, err
+        }
+
+        allSlugs = append(allSlugs, this.ParseSlugsFromPage(string(pageBody), origin)...)
+    }
+
+    return allSlugs, nil
+}
+
+func (this BunkrService) ParseFileInfo(body string) (string, string, error) {
+    //
+    nameMatches := this.SingleFileNameRegex.FindStringSubmatch(body)
+    if len(nameMatches) < 2 {
+        return "", "", fmt.Errorf("Could not find filename on page")
+    }
+
+    idMatches := this.DownloadIDRegex.FindStringSubmatch(body)
+    if len(idMatches) < 2 {
+        return "", "", fmt.Errorf("Could not find download ID on page")
+    }
+
+    return nameMatches[1], idMatches[1], nil
 }
