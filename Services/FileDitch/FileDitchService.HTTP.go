@@ -5,30 +5,9 @@ import (
 	"html"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"GDownloader/Common"
 	"GDownloader/Utils"
 )
-
-func (this FileDitchService) Download(filename string, pageURL string, downloadURL string, rootURL string) error {
-	//
-	destPath := Utils.GetAvailableDestinationPath(filename, rootURL)
-
-	var err error
-    for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
-        err = this.Client.Download(pageURL, downloadURL, destPath)
-        if err == nil {
-            Utils.Logger.LogSuccess(fmt.Sprintf("Successfully downloaded: %s", filename))
-            return nil
-        }
-
-        Utils.Logger.LogError(fmt.Sprintf("Download attempt %d failed: %s", attempt, err))
-        time.Sleep(Common.AppDefs.RetryDelay * time.Duration(attempt))
-    }
-
-    return fmt.Errorf("All attempts failed: %w", err)
-}
 
 func (this FileDitchService) HandleDownload(pageURL string) {
 	//
@@ -39,7 +18,7 @@ func (this FileDitchService) HandleDownload(pageURL string) {
     }
 
 	filename := strings.TrimSuffix(filepath.Base(pageURL), filepath.Ext(pageURL)) + filepath.Ext(pageURL)
-	err = this.Download(filename, pageURL, downloadURL, pageURL);
+	err = this.Base.Download(this.Client, filename, pageURL, downloadURL, pageURL);
     if err != nil {
         Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
     }

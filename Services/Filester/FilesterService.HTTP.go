@@ -3,37 +3,16 @@ package Services
 import (
 	"encoding/json"
 	"fmt"
-	"html"
 	"math/rand"
 	"net/url"
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	"GDownloader/Common"
 	"GDownloader/Models"
 	"GDownloader/Utils"
 )
-
-func (this FilesterService) Download(filename string, pageURL string, downloadURL string, rootURL string) error {
-	//
-	destPath := Utils.GetAvailableDestinationPath(html.UnescapeString(filename), rootURL)
-
-    var err error
-    for attempt := 1; attempt <= int(Common.AppDefs.MaxRetry); attempt++ {
-        err = this.Client.Download(pageURL, downloadURL, destPath)
-        if err == nil {
-            Utils.Logger.LogSuccess(fmt.Sprintf("Successfully downloaded: %s", html.UnescapeString(filename)))
-            return nil
-        }
-
-        Utils.Logger.LogError(fmt.Sprintf("Download attempt %d failed: %s", attempt, err))
-        time.Sleep(Common.AppDefs.RetryDelay * time.Duration(attempt))
-    }
-
-    return fmt.Errorf("All attempts failed: %w", err)
-}
 
 func (this FilesterService) HandleDownload(pageURL string) {
     //
@@ -61,7 +40,7 @@ func (this FilesterService) HandleDownload(pageURL string) {
                     return
                 }
 
-                err = this.Download(s.Filename, s.URL, downloadURL, pageURL)
+                err = this.Base.Download(this.Client, s.Filename, s.URL, downloadURL, pageURL)
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
                 }
@@ -77,7 +56,7 @@ func (this FilesterService) HandleDownload(pageURL string) {
             return
         }
 
-        err = this.Download(filename, pageURL, downloadURL, pageURL);
+        err = this.Base.Download(this.Client, filename, pageURL, downloadURL, pageURL);
         if err != nil {
             Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
         }

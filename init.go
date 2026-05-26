@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"strings"
+	"sync/atomic"
 
 	"GDownloader/Common"
 	"GDownloader/Utils"
@@ -16,16 +17,16 @@ func init() {
 	AssignFlags(url, filePath, limit, prefix, extension)
 }
 
-func InitFlags() (*string, *string, *uint, *string, *string) {
+func InitFlags() (*string, *string, *uint64, *string, *string) {
 	//
 	return flag.String("url", "", "Single url"),
 		flag.String("file", "", "Path to multi-url file"),
-		flag.Uint("limit", 0, "Only download this many files"),
+		flag.Uint64("limit", 0, "Only download this many files"),
 		flag.String("prefix", "", "Only download files starting with this string"),
 		flag.String("extension", "", "Only download files with this extension")
 }
 
-func AssignFlags(url *string, filePath *string, limit *uint, prefix *string, extension *string){
+func AssignFlags(url *string, filePath *string, limit *uint64, prefix *string, extension *string){
 	//
 	set := map[string]bool{}
 	flag.Visit(func (f *flag.Flag) {
@@ -57,7 +58,8 @@ func AssignFlags(url *string, filePath *string, limit *uint, prefix *string, ext
 	}
 
 	if set["limit"] {
-		Common.AppConfig.Limit = limit
+		Common.AppConfig.Limit = &atomic.Uint64{}
+        Common.AppConfig.Limit.Store(*limit)
 	}
 
 	if set["prefix"] {

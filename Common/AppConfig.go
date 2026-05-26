@@ -1,9 +1,11 @@
 package Common
 
+import "sync/atomic"
+
 type appConfig struct {
 	//
 	Urls []string
-	Limit *uint
+	Limit *atomic.Uint64
 	Prefix *string
 	Extension *string
 }
