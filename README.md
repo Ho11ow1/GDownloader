@@ -43,8 +43,6 @@ go run . [flags]
 
 > `-url` and `-file` are mutually exclusive — provide one, not both.
 
-> **Note:** `-limit`, `-prefix`, and `-extension` are not yet implemented.
-
 **Single URL**
 ```
 GDownloader -url "https://bunkr.site/a/example"
