@@ -38,9 +38,6 @@ func (this BunkrService) HandleDownload(pageURL string) {
                     return
                 }
 
-				Utils.Logger.Log(fmt.Sprintf("%s | %s | %s\n", s.Filename, s.URL, downloadURL))
-
-
 				err = this.Base.Download(this.Client, s.Filename, s.URL, downloadURL, pageURL);
                 if err != nil {
                     Utils.Logger.LogError(fmt.Sprintf("Download failed: %s", err))
@@ -56,8 +53,6 @@ func (this BunkrService) HandleDownload(pageURL string) {
             Utils.Logger.LogError(fmt.Sprintf("Failed to get download URL: %s", err))
             return
         }
-
-		Utils.Logger.Log(fmt.Sprintf("%s | %s", filename, downloadURL))
         
 		err = this.Base.Download(this.Client, filename, pageURL, downloadURL, pageURL);
         if err != nil {

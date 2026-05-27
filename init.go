@@ -2,19 +2,29 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 	"sync/atomic"
 
 	"GDownloader/Common"
-	"GDownloader/Utils"
+
+	"github.com/mattn/go-colorable"
+	"github.com/pterm/pterm"
 )
 
 func init() {
 	//
+	SetConsoleBehaviour()
+
 	url, filePath,  limit,  prefix, extension := InitFlags()
 	flag.Parse()
 	AssignFlags(url, filePath, limit, prefix, extension)
+}
+
+func SetConsoleBehaviour() {
+	//
+	pterm.SetDefaultOutput(colorable.NewColorableStdout())
 }
 
 func InitFlags() (*string, *string, *uint64, *string, *string) {
@@ -34,11 +44,11 @@ func AssignFlags(url *string, filePath *string, limit *uint64, prefix *string, e
 	});
 
 	if !set["url"] && !set["file"] {
-        Utils.Logger.LogError("Must provide -url or -file")
+        fmt.Println("Must provide -url or -file")
         os.Exit(1)
     }
     if set["url"] && set["file"] {
-        Utils.Logger.LogError("Wse either -url or -file, not both")
+        fmt.Println("Wse either -url or -file, not both")
         os.Exit(1)
     }
 
@@ -50,7 +60,7 @@ func AssignFlags(url *string, filePath *string, limit *uint64, prefix *string, e
 	if set["file"] {
 		_, err := os.Open(*filePath)
 		if err != nil{
-			Utils.Logger.LogError("File does not exist")
+			fmt.Println("File does not exist")
         	os.Exit(1)
 		}
 
@@ -75,7 +85,7 @@ func GetUrlsFromFile(filePath string) []string {
 	//
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		Utils.Logger.LogError("Could not read file contents at " + filePath)
+		fmt.Println("Could not read file contents at " + filePath)
 		os.Exit(1)
 	}
 

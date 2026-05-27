@@ -56,6 +56,7 @@ func (this DownloadServiceBase) Download(client Utils.HTTPClient, filename strin
         Common.AppConfig.Limit.CompareAndSwap(current, current -1)
     }
 
+    Utils.Logger.Log(fmt.Sprintf("Started download of %s | from page: %s", filename, pageURL))
 	destPath := Utils.GetAvailableDestinationPath(html.UnescapeString(filename), rootURL)
 
     var err error
@@ -74,5 +75,6 @@ func (this DownloadServiceBase) Download(client Utils.HTTPClient, filename strin
         Common.AppConfig.Limit.Add(1)
     }
 
+    Utils.Logger.LogError(fmt.Sprintf("All attempts failed: %s", err))
     return fmt.Errorf("All attempts failed: %w", err)
 }
